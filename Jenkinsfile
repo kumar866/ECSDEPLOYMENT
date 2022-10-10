@@ -1,62 +1,45 @@
 pipeline {
     agent any
-	
-	  tools
-    {
-       maven "Maven"
+    tools{
+        maven 'Maven'
     }
- stages {
-      stage('checkout') {
-           steps {
-             
-                git branch: 'master', url: 'https://github.com/devops4solutions/CI-CD-using-Docker.git'
-             
-          }
+
+    stages {
+        stage('git clone') {
+            steps {
+               git branch: 'main', url: 'https://github.com/kumar866/ECSDEPLOYMENT.git' 
+            }
         }
-	 stage('Execute Maven') {
-           steps {
-             
-                sh 'mvn package'             
-          }
+        stage('build'){
+            steps{
+                sh 'mvn clean install'
+            }
+        }
+        stage('jacaco'){
+            steps{
+             jacoco buildOverBuild: true, deltaBranchCoverage: '85', deltaClassCoverage: '85', deltaComplexityCoverage: '85', deltaInstructionCoverage: '85', deltaLineCoverage: '8', deltaMethodCoverage: '85', maximumBranchCoverage: '85', maximumClassCoverage: '85', maximumComplexityCoverage: '85', maximumInstructionCoverage: '85', maximumLineCoverage: '85', maximumMethodCoverage: '8', runAlways: true   
+            }
+        }
+        stage('DOCKER BULID IMAGES'){
+            steps{
+               sh " docker build -t kumarramya/mywebrr ." 
+            }
+        }
+        stage('Publish image to Docker Hub'){
+            steps{
+                script{
+                   withCredentials([string(credentialsId: 'Docker_Hub_Pwd', variable: 'Docker_Hub_Pwd')]) {
+                sh "docker login -u kumarramya -p ${Docker_Hub_Pwd}"
+             } 
+                sh "docker push kumarramya/mywebrr"
+                }
+            }
+        }
+        stage("Run Docker container on Jenkins Agent"){
+            steps{
+                 sh "docker run -d -p 8083:8080 kumarramya/mywebrr  "
+            }
         }
         
-
-  stage('Docker Build and Tag') {
-           steps {
-              
-                sh 'docker build -t samplewebapp:latest .' 
-                sh 'docker tag samplewebapp nikhilnidhi/samplewebapp:latest'
-                //sh 'docker tag samplewebapp nikhilnidhi/samplewebapp:$BUILD_NUMBER'
-               
-          }
-        }
-     
-  stage('Publish image to Docker Hub') {
-          
-            steps {
-        withDockerRegistry([ credentialsId: "dockerHub", url: "" ]) {
-          sh  'docker push nikhilnidhi/samplewebapp:latest'
-        //  sh  'docker push nikhilnidhi/samplewebapp:$BUILD_NUMBER' 
-        }
-                  
-          }
-        }
-     
-      stage('Run Docker container on Jenkins Agent') {
-             
-            steps 
-			{
-                sh "docker run -d -p 8003:8080 nikhilnidhi/samplewebapp"
- 
-            }
-        }
- stage('Run Docker container on remote hosts') {
-             
-            steps {
-                sh "docker -H ssh://jenkins@172.31.28.25 run -d -p 8003:8080 nikhilnidhi/samplewebapp"
- 
-            }
-        }
     }
-	}
-    
+}
